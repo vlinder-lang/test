@@ -45,7 +45,11 @@ Dir["cases/*"].each do |test_case|
                 )
 
                 python -c 'print("-" * 80); print("diff")'
-                diff "$TMPDIR/output.txt" "$TEST_CASE/output.txt"
+                diff "$TMPDIR/output.txt" "$TEST_CASE/output.txt" | tee "$TMPDIR/diff.txt"
+
+                if [ -s "$TMPDIR/diff.txt" ]; then
+                    exit 1
+                fi
             ) &> "$TMPDIR/log.txt"
         SCRIPT
         if $?.exitstatus == 0
