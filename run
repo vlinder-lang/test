@@ -1,0 +1,59 @@
+#!/usr/bin/env ruby
+require "fileutils"
+require "securerandom"
+require "tmpdir"
+
+unless ARGV.include?("--no-test-toolchain")
+    system("zsh", "-ec", <<-SCRIPT)
+        (
+            cd ../millc
+            mix deps.get
+            mix test
+            mix escript.build
+        )
+
+        (
+            cd ../horror
+            npm install
+            node_modules/babel/bin/babel-node test.js
+        )
+    SCRIPT
+    exit($?.exitstatus) if $?.exitstatus != 0
+end
+
+Dir["cases/*"].each do |test_case|
+    print("#{test_case} ...")
+
+    Dir.mktmpdir do |tmpdir|
+        system("zsh", "-ec", <<-SCRIPT, test_case, tmpdir)
+            TEST_CASE="$0"
+            TMPDIR="$1"
+
+            (
+                python -c 'print("-" * 80); print("millc")'
+                ../millc/millc \
+                    "$TMPDIR" \
+                    "../text/src:mill.text" \
+                    "../log/src:mill.log" \
+                    "$TEST_CASE:main"
+
+                python -c 'print("-" * 80); print("horror")'
+                echo "horror"
+                (
+                    cd ../horror
+                    node_modules/babel/bin/babel-node main.js "$TMPDIR" > "$TMPDIR/output.txt"
+                )
+
+                python -c 'print("-" * 80); print("diff")'
+                diff "$TMPDIR/output.txt" "$TEST_CASE/output.txt"
+            ) &> "$TMPDIR/log.txt"
+        SCRIPT
+        if $?.exitstatus == 0
+            puts(" \033[32mOK\033[0m")
+        else
+            log_path = "logs/#{SecureRandom.uuid()}.log"
+            FileUtils.mv("#{tmpdir}/log.txt", log_path)
+            puts(" \033[31mERROR\033[0m (#{log_path})")
+        end
+    end
+end

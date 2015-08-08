@@ -1,0 +1,5 @@
+import mill.log
+
+sub main(console: log.Logger): () {
+    log.info(console, "Hello, world!")
+}
