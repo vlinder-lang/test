@@ -61,3 +61,5 @@ Dir["cases/*"].each do |test_case|
         end
     end
 end
+
+exit $?.exitstatus
