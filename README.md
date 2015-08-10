@@ -1,2 +1,2 @@
 # test
-Test suite for the Mill toolchain.
+Test suite for the Vlinder toolchain.

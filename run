@@ -6,7 +6,7 @@ require "tmpdir"
 unless ARGV.include?("--no-test-toolchain")
     system("zsh", "-ec", <<-SCRIPT)
         (
-            cd ../millc
+            cd ../vlinderc
             mix deps.get
             mix test
             mix escript.build
@@ -30,11 +30,11 @@ Dir["cases/*"].each do |test_case|
             TMPDIR="$1"
 
             (
-                python -c 'print("-" * 80); print("millc")'
-                ../millc/millc \
+                python -c 'print("-" * 80); print("vlinderc")'
+                ../vlinderc/vlinderc \
                     "$TMPDIR" \
-                    "../text/src:mill.text" \
-                    "../log/src:mill.log" \
+                    "../text/src:vlinder.text" \
+                    "../log/src:vlinder.log" \
                     "$TEST_CASE:main"
 
                 python -c 'print("-" * 80); print("horror")'
