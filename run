@@ -1,65 +1,41 @@
-#!/usr/bin/env ruby
-require "fileutils"
-require "securerandom"
-require "tmpdir"
+#!/usr/bin/env python2
+from __future__ import print_function
 
-unless ARGV.include?("--no-test-toolchain")
-    system("zsh", "-ec", <<-SCRIPT)
-        (
-            cd ../vlinderc
-            mix deps.get
-            mix test
-            mix escript.build
-        )
+import difflib
+import os
+import os.path
+import shutil
+import subprocess
+import tempfile
 
-        (
-            cd ../horror
-            npm install
-            node_modules/babel/bin/babel-node test.js
-        )
-    SCRIPT
-    exit($?.exitstatus) if $?.exitstatus != 0
-end
+def compile(test_case, output_dir):
+    sbt_command = "run ../log/src ../text/src ../test/cases/{} {}".format(test_case, output_dir)
+    subprocess.check_output(["sbt.bat", sbt_command], cwd="../vlinderc", stderr=open(os.devnull, "w"))
 
-Dir["cases/*"].each do |test_case|
-    print("#{test_case} ...")
+def execute(test_case, module_dir):
+    node = os.path.normpath("../horror/node_modules/.bin/babel-node.cmd")
+    output = subprocess.check_output([node, "../horror/main.js", module_dir])
+    with open(os.path.join("cases", test_case, "output.txt")) as file:
+        expected_output = file.read()
+    if output != expected_output:
+        raise Exception("\n".join(difflib.context_diff(output, expected_output)))
 
-    Dir.mktmpdir do |tmpdir|
-        system("zsh", "-ec", <<-SCRIPT, test_case, tmpdir)
-            TEST_CASE="$0"
-            TMPDIR="$1"
+def test(test_case):
+    print(test_case, end="")
+    output_dir = tempfile.mkdtemp()
+    try:
+        compile(test_case, output_dir)
+        execute(test_case, module_dir=output_dir)
+    except Exception as e:
+        print(" [ERROR]\n" + e.message + "\n")
+    else:
+        print(" [OK]")
+    finally:
+        shutil.rmtree(output_dir)
 
-            (
-                python -c 'print("-" * 80); print("vlinderc")'
-                ../vlinderc/vlinderc \
-                    "$TMPDIR" \
-                    "../text/src:vlinder.text" \
-                    "../log/src:vlinder.log" \
-                    "$TEST_CASE:main"
+def main():
+    for test_case in os.listdir("cases"):
+        test(test_case)
 
-                python -c 'print("-" * 80); print("horror")'
-                echo "horror"
-                (
-                    cd ../horror
-                    node_modules/babel/bin/babel-node main.js "$TMPDIR" > "$TMPDIR/output.txt"
-                )
-
-                python -c 'print("-" * 80); print("diff")'
-                diff "$TMPDIR/output.txt" "$TEST_CASE/output.txt" | tee "$TMPDIR/diff.txt"
-
-                if [ -s "$TMPDIR/diff.txt" ]; then
-                    exit 1
-                fi
-            ) &> "$TMPDIR/log.txt"
-        SCRIPT
-        if $?.exitstatus == 0
-            puts(" \033[32mOK\033[0m")
-        else
-            log_path = "logs/#{SecureRandom.uuid()}.log"
-            FileUtils.mv("#{tmpdir}/log.txt", log_path)
-            puts(" \033[31mERROR\033[0m (#{log_path})")
-        end
-    end
-end
-
-exit $?.exitstatus
+if __name__ == "__main__":
+    main()
