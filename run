@@ -18,7 +18,8 @@ def execute(test_case, module_dir):
     with open(os.path.join("cases", test_case, "output.txt")) as file:
         expected_output = file.read()
     if output != expected_output:
-        raise Exception("\n".join(difflib.context_diff(output, expected_output)))
+        diff = difflib.unified_diff(output.splitlines(), expected_output.splitlines())
+        raise Exception("\n".join(diff))
 
 def test(test_case):
     print(test_case, end="")
