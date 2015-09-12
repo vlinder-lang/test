@@ -9,8 +9,18 @@ import subprocess
 import tempfile
 
 def compile(test_case, output_dir):
-    sbt_command = "run ../log/src ../text/src ../test/cases/{} {}".format(test_case, output_dir)
-    subprocess.check_output(["sbt.bat", sbt_command], cwd="../vlinderc", stderr=open(os.devnull, "w"))
+    args = ["../log/src", "../text/src", "../test/cases/" + test_case, output_dir]
+    vlinderc = subprocess.Popen(
+        ["java", "-jar", "../vlinderc/target/scala-2.11/vlinderc-assembly-0.0.1.jar"] + args,
+        cwd="../vlinderc",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = vlinderc.communicate()
+    if stderr == "":
+        return
+    else:
+        raise Exception(stderr)
 
 def execute(test_case, module_dir):
     node = os.path.normpath("../horror/node_modules/.bin/babel-node.cmd")
@@ -35,6 +45,7 @@ def test(test_case):
         shutil.rmtree(output_dir)
 
 def main():
+    subprocess.check_call(["sbt.bat", "assembly"], cwd="../vlinderc")
     for test_case in os.listdir("cases"):
         test(test_case)
 
